@@ -1,295 +1,169 @@
-# STYLE ***************************************************************************
-# content = evenly reduce polymesh by 50 %
-#           selects everyother edge loop
-#           requires selection of one vertical and one horizontal line
-# date    = 2025-09-12
-#
-# author  = Reid Bryan (reidwarhola@gmail.com)
-# **********************************************************************************
 import maya.cmds as cmds
-import re
-import time
-import maya.mel as mel
+import re 
 
-def getName(item, type):
-    type = getType(type)
-    objName = item.split(type)[0]
-    return objName
 
-def getNumber(item, type):
-    """ args:   poly asset
-                string of type of asset
-        return: number inside brackets of object """
-    
-    match type:
-        case "edge":
-            type = '.e'
-        case "face":
-            type = '.f'
-    
-    bracket = item.split(type)[1]
-    nPattern = re.compile(r'(\d+)') 
-    number = nPattern.findall(bracket)[0]
-    return int(number)
-
-def removeBrackets(set, type):
-    type = getType(type)
-    correctedNames = []
-    for item in set:
-        objName, bracket = item.split(type)
+def removeBrackets(set):
+    if type(set) is list:
+        typ= getType(set[0])
+        correctedNames = []
+        for item in set:
+            objName, bracket = item.split(typ)
+            if ":" in bracket:
+                nPattern = re.compile(r'(\d+)') 
+                numbers = nPattern.findall(bracket)
+                for i in range(int(numbers[0]), int(numbers[1])+1):
+                    correctedNames.append(objName + typ + "[" + str(i) + "]")
+                    i += 1
+            else:
+                correctedNames.append(item)
+    else:
+        typ= getType(set)
+        objName, bracket = item.split(typ)
         if ":" in bracket:
+            correctedNames = []
             nPattern = re.compile(r'(\d+)') 
             numbers = nPattern.findall(bracket)
             for i in range(int(numbers[0]), int(numbers[1])+1):
-                correctedNames.append(objName + type + "[" + str(i) + "]")
+                correctedNames.append(objName + typ+ "[" + str(i) + "]")
                 i += 1
         else:
-            correctedNames.append(item)
-
+            correctedNames=item
     return correctedNames
 
 def getType(n):
-    match n:
-        case "edge":
-            type = '.e'
-        case "face":
-            type = '.f'
-        case "vertex":
-            type = '.vtx'
-    return type
+    if '.e[' in n:
+        typ= '.e'
+    if '.vtx[' in n:
+        typ= '.vtx'
 
-def isBorder(edge):
+    return typ
+
+        
+def getNumber(edges):
     try:
-        border = cmds.polySelect( objName, eb= int(getNumber(edge,"edge")), q = True) 
+        bracket = edges.split('.e[')[1]
+        nPattern = re.compile(r'(\d+)') 
+        number = nPattern.findall(bracket)[0]
+        return int(number)
     except:
-        border = cmds.polySelect( objName, eb= int(edge), q = True)  
-    try:
-        if len(border) > 0:
-            return True
-        else:
-            return False
-    except:
-        return False   
+        bracket = edges.split('.f[')[1]
+        nPattern = re.compile(r'(\d+)') 
+        number = nPattern.findall(bracket)[0]
+        return int(number)
+    
+borders = ['polySurface21.e[215]', 'polySurface21.e[219]', 'polySurface21.e[223]', 'polySurface21.e[226]', 'polySurface21.e[229]', 'polySurface21.e[232]', 'polySurface21.e[235]', 'polySurface21.e[238]', 'polySurface21.e[241]', 'polySurface21.e[244]', 'polySurface21.e[247]', 'polySurface21.e[250]', 'polySurface21.e[253]', 'polySurface21.e[256]', 'polySurface21.e[259]', 'polySurface21.e[262]', 'polySurface21.e[265]', 'polySurface21.e[267]', 'polySurface21.e[269]', 'polySurface21.e[272]', 'polySurface21.e[275]', 'polySurface21.e[278]', 'polySurface21.e[281]', 'polySurface21.e[284]', 'polySurface21.e[287]', 'polySurface21.e[290]', 'polySurface21.e[293]', 'polySurface21.e[296]', 'polySurface21.e[299]', 'polySurface21.e[302]', 'polySurface21.e[307]', 'polySurface21.e[310]']
+
 def getLongName(edges):
     try:
         longN = []
         for edge in edges:
-            longN.append(objName + ".e[" + str(edge) + "]")
+            longN.append('polySurface21' + ".e[" + str(edge) + "]")
     except:
-        longN = (objName + ".e[" + str(edges) + "]")
+        longN = ('polySurface21' + ".e[" + str(edges) + "]")
     return longN
 
-def getEdges(edges, extracted, checks):
 
-    eoEdge = cmds.polySelect( 'polySurface21', er= edges, en = 2, q = True)
-    
 
-    erEnd = eoEdge[0]
-    partial = cmds.polySelect('polySurface21', erp= [erEnd,edges], en = 2, q = True)
-    print("ext: ", extracted)
-    fullEdgeRings = []
-    for edge in partial:
-        fullEdgeRings.extend(cmds.polySelect('polySurface21', el= edge, q = True))
-    if erEnd == edges:
-        erEnd = eoEdge[len(eoEdge)-1]
-        partial = cmds.polySelect('polySurface21', erp= [erEnd,edges], en = 2, q = True)
-    use = []
-    #get intersection and keep order of list
-    if eoEdge[0] != edges:
-        while(True):
-            for i in range(len(eoEdge) - 1, -1, -1):
-                if eoEdge[i] in partial:
-                    use.append(eoEdge[i])
-                i -= 1
-                if i < 0:
-                    break
-            break
-    else:
-        for i in range(len(eoEdge)):
-            if eoEdge[i] in partial :
-                use.append(eoEdge[i])
-            i+=1
-    # assert use[0] == edges
-    avg = True
-    prev = 0
-    
-    el = []
-    next = []
-    print("start", edges)
-    first = True
-    for i in range(len(use)):
-        if not isBorder(use[i]):
-            if avg:
-                avgLength = len(cmds.polySelect( 'polySurface21', el= use[i], q = True))
-                avg = False
-            edgeLoop = cmds.polySelect('polySurface21', el= use[i], q = True)
-            if len(edgeLoop) == avgLength:
-                el.extend(edgeLoop)
-            elif len(edgeLoop) > avgLength:
-                el.extend(edgeLoop)
-                avgLength = len(edgeLoop)
+def getEdges(borders):
+    tested = []
+    edges50 = []
+    x = 0
+    y = len(borders)
+    z = 0
+    edgesAll =[]
+    breakpoint = []
+    check = 0
+    newCheck = 0
+    close = removeBrackets(cmds.polySelect('polySurface21', eb = True, q = 1, ass = 1))
+    save = ""
+    broken = []
+    for edge in borders:
+        if edge not in tested:
+            x += 1
+            edgeNum = getNumber(edge)
+            edgeRing = removeBrackets(cmds.polySelect('polySurface21', er= edgeNum, q = 1, ass = 1))
+            verts = removeBrackets(cmds.polyListComponentConversion( edge, fe=True, tv=True ))
 
+            vEdges = removeBrackets(cmds.polyListComponentConversion(verts, fv=True, te=True ))
+
+            for v in vEdges:
+
+                if v not in close and v != edge:
+                    perpEdge = getNumber(v)
+            found = False
+            for e in edgeRing:
+                if e in tested:
+                    found = True
+            if found == True:
+                print(x, ": ", edge, len(broken))
+                broken.append(edge)
             else:
-                el.extend(edgeLoop)
-                cmds.select(getLongName(use[i]))
-                mel.eval('PolySelectTraverse 4')
-                newLoopN =  removeBrackets(cmds.ls(sl = True), "edge")
-                newLoop = []
-                
-                for name in newLoopN:
-                    newLoop.append(getNumber(name, "edge"))
-                
-                if len(newLoop) > len(edgeLoop) and len(newLoop) != avgLength:
-                    el.extend(newLoop)
-                    diff = 0#(list(set(newLoopN) - set(edgeLoop)))
-                    for each in newLoop:
-                        if each not in edgeLoop:
-                            testDiff = len(cmds.polySelect( 'polySurface21', er= each))
-                            if testDiff > diff:
-                                diff = testDiff
-                                prev = each
-
+            
+                for e in edgeRing:
+                    tested.extend(removeBrackets(cmds.polySelect('polySurface21', el= getNumber(e), q = True, ass = 1)))
+                    tested = list(set(tested))
+                check = 0
+                edgeLoop = removeBrackets(cmds.polySelect('polySurface21', el= int(perpEdge) , q = True, ass = 1))
+                if len(edgeLoop) == len(edgeRing) -1:
+                    overlap = list(set(edgeRing) - set(borders)) 
+                    edges50 = cmds.polySelect('polySurface21', er=edgeNum, en = 2, q = True, ass = 1)
+                    use = cmds.polySelect('polySurface21', er=edgeNum, en = 2, q = True)
+                    cmds.select(cl = 1)
+                    for each in use:
+                        cross = removeBrackets(cmds.polySelect('polySurface21', el= each, q = True, ass = 1))
+                        if len(cross) == check:
+                            edgesAll.extend(removeBrackets(cmds.polySelect('polySurface21', el= each, q = True, ass = 1)))
+                        elif len(cross) > check:
+                            check = len(cross)
+                            edgesAll.extend(removeBrackets(cmds.polySelect('polySurface21', el= each, q = True, ass = 1)))
+                        elif len(cross) < check and newCheck == len(cross):
+                            check = len(cross)
+                            edgesAll.extend(removeBrackets(cmds.polySelect('polySurface21', el= each, q = True, ass = 1)))
+                            edgesAll.extend(removeBrackets(cmds.polySelect('polySurface21', el= save, q = True, ass = 1)))
                             
-                    # if first == False:
-                    #     next = []
-                    next.append(prev)
-                    first = False
-                    #avgLength = len(edgeLoop)
-                # else:
-                #     next.append(edgeLoop[int(len(edgeLoop)-1)])
-                #     first = False
-              
-                i += 1
-        else:
-            i +=1
-            #break
-    print(el)
-
-    #checks.extend()
-    el = checkFull(el, checks)
-    print("prev", el)
-    print("-----------------------------------------")
-    return [el, next, fullEdgeRings]
-
-def checkFull(selected, full):
-    if needsCheck == False:
-        print("ture no check")
-        return selected
-    else:
-        newSel = []
-        for each in selected:
-            if each not in full:
-                newSel.append(each)
-        return newSel
-    
-def start():
-    global objName
-    #selected = removeBrackets(cmds.ls(sl = True), "edge")[0:2]
-    objName = 'polySurface21'
-
-
-    totalEdges = cmds.polyEvaluate(objName, e = True)
-    reduced = totalEdges/2
-
-    current = 0    
-    cmds.select(cl = True)    
-  
-    edges = 246
-    allowedtime = time.time() + (60)
-    all = []
-    x = 0
-    while(True):
-        if time.time() > allowedtime:
-            print("timed out")
-            break
-        try:
-            el, newEdgeLoop = getEdges(edges)
-
-        except Exception as e:
-
-            print("Exception: ", e)
-            print(newEdgeLoop[0])
-            break
-        if len(set(all)) > reduced:
-                print("too long", len(all))
-                break
-    cmds.select(all, add = True)
-                
-    
-def test(edge, ext, checks):
-    global objName
-    #selected = removeBrackets(cmds.ls(sl = True), "edge")[0:2]
-    objName = 'polySurface21'
-    all = []
-    el, newEdgeLoop, check = getEdges(edge, ext, checks)
-
-
-    return el, newEdgeLoop, check
-
-def testing(edge):
-    global needsCheck
-    needsCheck = False
-    allowedtime = time.time() + (20)
-    all = []
-    x = 0
-    addedEdges = []
-    checks = []
-    edges = []
-    allel = []
-    remove = []
-    while(True and x < 2):
-        if time.time() > allowedtime:
-            print("timed out")
-            break
-         
-        
-        
-        try:
-            if edges not in addedEdges:
-                el, newEdge, check = test(edge, all, checks)
-                needsCheck = True
-                all.extend(el)
-                addedEdges.append(edges)
-                edge = newEdge
-                checks.extend(check)
-                x += 1
-                print("x = ", x) 
-                print("NextEdge : ", edge)    
-        except:
-            for each in edge:
-                if each not in addedEdges:
-                    print("testing", each)
-                    el, newEdge, check = test(int(each), all, checks)
-                    needsCheck = True
-                    addedEdges.append(each)
-                    try:
-                        edges.extend(newEdge)
-                        all.extend(el)
-                        checks.extend(check)
-                    except:
-                        pass
-                    
+                            broken.remove(getLongName(save))
+                            save = ""
+                        else:
+                            newCheck = len(cross)
+                            save = each
+                            broken.append(getLongName(each))
+                            print("newSave")
                 else:
-                    remove.append(each)
-                    pass
+                    z+=1
+            # for over in overlap:
+            #     tested.append(over)
+
             
-            edge = edges
-            for each in remove:
-                try:
-                    edge.remove(each)
-                except:
-                    pass
-
-        print(edge)
-        if edge == []:
-            break
             
+                
+  
+        else:
+            z +=1
+            broken.append(edge)
+    edges50 = []
+    for i in range(0,len(edgesAll), 1):
+        if edgesAll[i] not in borders:
+            edges50.append(edgesAll[i])
 
-    
-    
-        
-    
-    print("x = ", x)      
-    cmds.select(getLongName(all))
+    bEdges = []
+    # for i in range(0,len(broken), 1):
+    #     if broken[i] not in close:
+    #         bEdges.append(broken[i])
 
-testing([228, 145])
+    # print(edgesAll)
+    print(y, " : ", x, " : ", z)    
+    print(len(broken))
+    cmds.select(broken)
+    return(edgesAll)
+
+a = getEdges(borders)
+reversed = []
+for i in range(len(borders)-1, -1, -1):
+    reversed.append(borders[i])
+
+
+#b = getEdges(reversed)
+
+#cmds.select(a)
+
+
