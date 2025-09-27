@@ -141,7 +141,7 @@ def findEdgeLoop(evenEdges):
 def getCornerEdges(objName, index):
     edgeRing = cmds.polySelect( objName, edgeRing= index, ass = 1 )
     evenEdges = removeBrackets(edgeRing, "edge")
-    print(evenEdges)
+    # print(evenEdges)
     cmds.select(evenEdges)
     first = True
     allEdges = []
@@ -155,7 +155,7 @@ def getCornerEdges(objName, index):
             except:
                 break
             
-            if secondEdge == "":
+            if len(secondEdge) == 0:
                 i = edgeLoopLength + 500 
             else:
                 newE = False
@@ -169,13 +169,14 @@ def getCornerEdges(objName, index):
                     i = edgeLoopLength + 500           
                 else:
                     i += 1                   
-            if cornerEdge == "":
-                pass 
-            else:
-                newE = False
-                cornerEdges.extend(cornerEdge)
-                #edgeLoop.extend(cornerEdge)
-        allEdges.extend(cornerEdges)
+                if len(cornerEdge) == 0:
+                    pass 
+                else:
+                    newE = False
+                    cornerEdges.extend(cornerEdge)
+                    #edgeLoop.extend(cornerEdge)
+                
+        allEdges.append(list(set(cornerEdges)))
     return allEdges 
 
 def fifty():
@@ -196,10 +197,23 @@ def fifty():
     second = getCornerEdges('polySurface21',1799)
     
     # third = getCornerEdges('polySurface21',677)
-    # cmds.select(second)
+    cmds.select(cl = True)
     allCorners = []
-    for edge in second:
-        allCorners.extend(cmds.polySelect('polySurface21', el = getNumber(edge, "edge"), ass = 1))
-    cmds.select(allCorners)
-
+    for edge in second[44:45]:
+        for each in edge:
+        # allCorners.extend(cmds.polySelect('polySurface21', el = getNumber(edge, "edge"), ass = 1, q = 1))
+            cmds.select(each, add = True)
+    print("second", len(second), " , ",second[0:10])
+    for edge in second[0:1]:
+        for each in edge:
+        # allCorners.extend(cmds.polySelect('polySurface21', el = getNumber(edge, "edge"), ass = 1, q = 1))
+            cmds.select(each, add = True)
+    for edge in second[3:4]:
+        for each in edge:
+        # allCorners.extend(cmds.polySelect('polySurface21', el = getNumber(edge, "edge"), ass = 1, q = 1))
+            cmds.select(each, add = True)
+    allCorners.append(second[44])
+    allCorners.append(second[0])
+    allCorners.append(second[3])
+    pprint.pp(allCorners)
 fifty()
